@@ -1,0 +1,9 @@
+{
+  "name": "installed-nodes",
+  "private": true,
+  "dependencies": {
+    "n8n-nodes-debounce": "2.2.2",
+    "n8n-nodes-evolution-api": "1.0.4",
+    "n8n-nodes-zalo-user-v3": "0.0.33"
+  }
+}

@@ -45,7 +45,7 @@ The **`workflow/`** folder contains sample workflows:
 ### How to use the workflow:
 1. Open the n8n interface.
 2. Import `workflow/keep-running.json`.
-3. Set up a trigger (e.g., every 24 hours) to send requests to your Hugging Face Space URL.
+3. Update email, password and set up a trigger (e.g., every 24 hours) to send requests to your Hugging Face Space URL.
 
 ---
 

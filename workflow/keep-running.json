@@ -1,0 +1,75 @@
+{
+  "name": "keep-running",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -112,
+        80
+      ],
+      "id": "d008f0db-c80f-47a5-be9b-5e030ed27b8d",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hieeus1402-n8n.hf.space/rest/login",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json; charset=utf-8"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"emailOrLdapLoginId\":\"youremail@gmail.com\",\"password\":\"yourPasswrord\"}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        96,
+        80
+      ],
+      "id": "83821955-fe05-4f68-8505-5a25b3c790db",
+      "name": "n8n"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "n8n",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0ea4d7d5-3f44-40de-9649-ae2fd149276f",
+  "meta": {
+    "instanceId": "4f8be86c7e6fc2ab223bed30484d39fcac64f36e78bcba82abd606a8dfaf4b4e"
+  },
+  "id": "cyNPNviNRpF3lCTd",
+  "tags": []
+}
