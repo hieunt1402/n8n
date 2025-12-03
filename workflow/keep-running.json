@@ -23,7 +23,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://hieeus1402-n8n.hf.space/rest/login",
+        "url": "your-huggingface-space-url/rest/login",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
