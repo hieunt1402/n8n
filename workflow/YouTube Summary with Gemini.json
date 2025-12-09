@@ -1,0 +1,674 @@
+{
+  "name": "YouTube Summary with Gemini",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/youtube/v3/videos",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "part",
+              "value": "snippet,statistics"
+            },
+            {
+              "name": "chart",
+              "value": "mostPopular"
+            },
+            {
+              "name": "regionCode",
+              "value": "VN"
+            },
+            {
+              "name": "maxResults",
+              "value": "5"
+            },
+            {
+              "name": "videoCategoryId",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -288,
+        528
+      ],
+      "id": "f5415428-3d41-4619-a74f-73efaee90f69",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpCustomAuth": {
+          "id": "qPZYjJBHWwBCZAFd",
+          "name": "Gemini Headers Auth"
+        },
+        "httpQueryAuth": {
+          "id": "RoZ3nNk7QyEldqnW",
+          "name": "Query Auth Youtube"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## videoCategoryId\n1\tFilm & Animation\n2\tAutos & Vehicles\n10\tMusic\n15\tPets & Animals\n17\tSports\n20\tGaming\n22\tPeople & Blogs\n23\tComedy\n24\tEntertainment\n25\tNews & Politics\n26\tHowto & Style\n27\tEducation\n28\tScience & Tech",
+        "height": 352
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -352,
+        32
+      ],
+      "id": "74780ed2-7ffe-4e52-80c2-43be6dcf05a5",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "30c38ae8-6fec-4a74-a4dd-8cf820a2bfdd",
+              "name": "videoURL",
+              "value": "=https://www.youtube.com/watch?v=lokbsA5VXOk",
+              "type": "string"
+            },
+            {
+              "id": "f287f652-8a98-41b8-8f85-3322d979449d",
+              "name": "prompt",
+              "value": "Bạn là một nhà sản xuất podcast chuyên nghiệp. Phân tích nội dung của video YouTube sau và tạo một kịch bản podcast ngắn gọn, hấp dẫn, phù hợp để ghi âm và chia sẻ.  Yêu cầu: - Độ dài phù hợp cho podcast dưới 1 phút. - Bao gồm: phần giới thiệu, các điểm chính của video, phần kết thúc với lời mời theo dõi. - Ngôn ngữ tự nhiên, thu hút người nghe.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        288
+      ],
+      "id": "15c6ca30-13d1-45b8-8033-4fd822d31d54",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "/data/image.png",
+        "dataPropertyName": "imageData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        288
+      ],
+      "id": "2702eebb-7748-4fac-a9ab-eb4614c6cb69",
+      "name": "Write Image"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "/data/audio.pcm",
+        "dataPropertyName": "dataPCM",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        416,
+        528
+      ],
+      "id": "fe78901c-dd61-4d6f-b2e0-8f782593bd8d",
+      "name": "Write Audio"
+    },
+    {
+      "parameters": {
+        "command": "={{ $json.convert_audio_command }}"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        736,
+        528
+      ],
+      "id": "d392f3e6-c034-49a8-8e85-85aad7364366",
+      "name": "GENERATE AUDIO"
+    },
+    {
+      "parameters": {
+        "command": "=ffmpeg -y \\\n-loop 1 -i \"image.png\" \\\n-i \"audio.mp3\" \\\n-vf \"scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2\" \\\n-c:v libx264 -tune stillimage -c:a aac -b:a 192k \\\n-shortest -pix_fmt yuv420p \"video.mp4\""
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        896,
+        528
+      ],
+      "id": "98562cdc-da1b-44c3-9a74-d0e36cad4455",
+      "name": "GENERATE VIDEO"
+    },
+    {
+      "parameters": {
+        "fileSelector": "video.mp4",
+        "options": {
+          "dataPropertyName": "dataVideo"
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1104,
+        528
+      ],
+      "id": "1ec4110f-6587-4e2f-abb2-56c1605848d6",
+      "name": "Read/Write Files from Disk"
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "candidates[0].content.parts[0].inlineData.data",
+        "binaryPropertyName": "dataPCM",
+        "options": {
+          "fileName": "audio.pcm"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        528
+      ],
+      "id": "34c69af6-408e-4ffb-832a-7b00fe6211d7",
+      "name": "Convert to File"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -32,
+        288
+      ],
+      "id": "a46a3d1d-eefa-4a4d-9319-9d5f4cc5c19c",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{ $('format Json').first().json.title }} #Shorts",
+        "regionCode": "VN",
+        "categoryId": "15",
+        "binaryProperty": "dataVideo",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        1312,
+        528
+      ],
+      "id": "aa183f4e-6d2c-4036-b502-cba284c9c912",
+      "name": "Upload a video",
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "FiI2WdFcbmq6vzQn",
+          "name": "YouTube account - Yaaasoo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "dataVideo",
+        "name": "video.mp4",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1EXFEbUL1HMDZduBIitjEKeUIHZeHFds8",
+          "mode": "list",
+          "cachedResultName": "POC project",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1EXFEbUL1HMDZduBIitjEKeUIHZeHFds8"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        720,
+        768
+      ],
+      "id": "2b0cddbc-b6cb-42f5-a579-0d7876e3a18a",
+      "name": "Upload file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "mK1g1fPpAOf1h68s",
+          "name": "Google Drive account - Yaaasoo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1RMzssBWny4v5JEompC8uw1Tg2THrHezYjXwnLWts3yo",
+          "mode": "list",
+          "cachedResultName": "POC",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1RMzssBWny4v5JEompC8uw1Tg2THrHezYjXwnLWts3yo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1RMzssBWny4v5JEompC8uw1Tg2THrHezYjXwnLWts3yo/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "URL": "=https://drive.google.com/uc?export=download&id={{ $('Upload file').item.json.id }}",
+            "Description": "For tiktok video"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Description",
+              "displayName": "Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "URL",
+              "displayName": "URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        1104,
+        768
+      ],
+      "id": "beb0ab2a-fb86-4c85-b8f3-20145295c309",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "HFOj5dBH18gYYkbt",
+          "name": "Google Sheets account - Yaaasoo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "share",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "permissionsUi": {
+          "permissionsValues": {
+            "role": "reader",
+            "type": "anyone"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        896,
+        768
+      ],
+      "id": "b8ad17ed-ac18-4881-afe8-6847293704b9",
+      "name": "Share file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "mK1g1fPpAOf1h68s",
+          "name": "Google Drive account - Yaaasoo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Prompt\nYou are a professional podcast producer. Based on the content of the YouTube video then create a short, attractive podcast script, suitable for recording and sharing with the audience. The script should include an introduction, the main contents of the video and a conclusion with an invitation to follow. Always reply to me with the following json structure {`name': podcast name, 'content': podcast content}. There are not many podcasts, the appropriate length for videos is under 1 minute.\n",
+        "height": 176,
+        "width": 640
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        368,
+        0
+      ],
+      "id": "d1274aa5-19db-4250-b4ff-5607f87e912e",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $input.first().json.candidates[0].content.parts[0].text ;\nconst match = text.match(/\\{[\\s\\S]*?\\}/);\n\nif (match) {\n  const json = JSON.parse(match[0]);\n  return [{ json }];\n} else {\n  return [{ json: { error: \"No JSON\" } }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        288
+      ],
+      "id": "c608a034-bbad-430c-af65-dcb25f188225",
+      "name": "format Json"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpCustomAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\": \"{{ $json.prompt }}\"\n        },\n        {\n          \"file_data\": {\n            \"file_uri\": \"{{ $json.videoURL }}\"\n          }\n        }\n      ]\n    }\n  ],\n  \"generationConfig\": {\n    \"responseMimeType\": \"application/json\",\n    \"responseSchema\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"title\": { \"type\": \"string\" },\n          \"content\": { \"type\": \"string\" }\n        },\n        \"propertyOrdering\": [\"title\", \"content\"]\n      }\n    }\n  }\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "392ec65a-fdfb-4d9e-9f42-f29102fdb44f",
+      "name": "Get analysis from Gemini",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        432,
+        288
+      ],
+      "notesInFlow": false,
+      "typeVersion": 4.2,
+      "retryOnFail": true,
+      "maxTries": 2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "9aHpE2YiMJGGEm4z",
+          "name": "Header Auth account"
+        },
+        "httpCustomAuth": {
+          "id": "qPZYjJBHWwBCZAFd",
+          "name": "Gemini Headers Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash-image-preview",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash-image-preview (Nano Banana)"
+        },
+        "prompt": "=Tạo ảnh nền cho video ngắn với tiêu đề  {{ $json.title }}",
+        "options": {
+          "binaryPropertyOutput": "imageData"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        880,
+        288
+      ],
+      "id": "be6c78b4-f8b6-43a8-944c-d5a90590a7b4",
+      "name": "Generate an image",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "SxkUrC8VEeMFJvG6",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpCustomAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n        \"contents\": [{\n          \"parts\":[{\n            \"text\": \"{{ $('format Json').item.json.content }}\"\n          }]\n        }],\n        \"generationConfig\": {\n          \"responseModalities\": [\"AUDIO\"],\n          \"speechConfig\": {\n            \"voiceConfig\": {\n              \"prebuiltVoiceConfig\": {\n                \"voiceName\": \"Kore\"\n              }\n            }\n          }\n      }\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        32,
+        528
+      ],
+      "id": "edb25feb-5cc5-4f12-b49e-782122430abc",
+      "name": "Create voice",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "9aHpE2YiMJGGEm4z",
+          "name": "Header Auth account"
+        },
+        "httpCustomAuth": {
+          "id": "qPZYjJBHWwBCZAFd",
+          "name": "Gemini Headers Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const image = \"/data/image.png\";\nconst pcmAudio = \"/data/audio.pcm\";\nconst mp3Audio = \"/data/audio.mp3\";\nconst outputVideo = \"/data/video.mp4\";\n\n// Bước 1: Chuyển đổi PCM sang WAV\nconst convertAudioCommand = `\nffmpeg -y -f s16le -ar 24000 -ac 1 -i \"${pcmAudio}\" -acodec libmp3lame -b:a 128k \"${mp3Audio}\"\n`;\n\n// Bước 2: Tạo video từ ảnh và ghép audio WAV\nconst createVideoCommand = `\nffmpeg -y \\\n-loop 1 -i \"${image}\" \\\n-i \"${mp3Audio}\" \\\n-c:v libx264 -tune stillimage -c:a aac -b:a 192k \\\n-shortest -pix_fmt yuv420p \"${outputVideo}\"\n`;\n\nreturn [{\n  json: {\n    convert_audio_command: convertAudioCommand,\n    create_video_command: createVideoCommand\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        528
+      ],
+      "id": "50247dfa-0526-4879-898e-0f55eee4e4a2",
+      "name": "Create command"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "HTTP Request": {
+      "main": [
+        []
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Get analysis from Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Image": {
+      "main": [
+        [
+          {
+            "node": "Create voice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Audio": {
+      "main": [
+        [
+          {
+            "node": "Create command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GENERATE AUDIO": {
+      "main": [
+        [
+          {
+            "node": "GENERATE VIDEO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GENERATE VIDEO": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk": {
+      "main": [
+        [
+          {
+            "node": "Upload a video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [
+          {
+            "node": "Write Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload file": {
+      "main": [
+        [
+          {
+            "node": "Share file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Share file": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format Json": {
+      "main": [
+        [
+          {
+            "node": "Generate an image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get analysis from Gemini": {
+      "main": [
+        [
+          {
+            "node": "format Json",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate an image": {
+      "main": [
+        [
+          {
+            "node": "Write Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create voice": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create command": {
+      "main": [
+        [
+          {
+            "node": "GENERATE AUDIO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "55580d7c-7e6f-4876-b500-46521e971b65",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4f8be86c7e6fc2ab223bed30484d39fcac64f36e78bcba82abd606a8dfaf4b4e"
+  },
+  "id": "kv4ipSYBLSpzAWRh",
+  "tags": []
+}
