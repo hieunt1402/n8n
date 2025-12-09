@@ -1,0 +1,2688 @@
+{
+  "name": "FB chatbot",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=**Nội dung khách hỏi**\n{{ $('MergeMessage').first().json.text.join('\\n') }}\n**ID của khách**\n{{ $('StructureData').last() .json.sender_id }}\n**Lưu ý**\nHãy dựa vào lịch sử trò chuyện để ghi nhớ tên khách hàng.",
+        "options": {
+          "systemMessage": "={{ $json.Prompt }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        976,
+        1872
+      ],
+      "id": "78c7e6c5-bf1f-4383-9106-f6c5a0b15d34",
+      "name": "AI Agent",
+      "executeOnce": false,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-mini"
+        },
+        "options": {
+          "temperature": 0.4,
+          "topP": 0.7
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        2096
+      ],
+      "id": "d58ce07b-931d-475c-a9e6-9f8a33280c71",
+      "name": "OpenAI Chat Model"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('MergeMessage').first().json.sender_id }}-{{ $now.format('ddMMyyyy') }}",
+        "contextWindowLength": 30
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        1040,
+        2096
+      ],
+      "id": "50136ea2-7f3f-4ac7-9843-abfe953e80b0",
+      "name": "Postgres Chat Memory"
+    },
+    {
+      "parameters": {
+        "content": "## Map dữ liệu và Lấy page access token\n- Cấu trúc lại dữ liệu sau đó kiểm tra và lấy ra đúng token của page mà chúng ta đang thao tác (Mục đích là sẽ có nhiều page) ",
+        "height": 340,
+        "width": 680
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        16,
+        1056
+      ],
+      "typeVersion": 1,
+      "id": "ac22d609-e98c-4d75-ac80-9c4edfcb4746",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Check trùng và lưu lại tin nhắn vào database\n",
+        "height": 340,
+        "width": 700
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        752,
+        1056
+      ],
+      "typeVersion": 1,
+      "id": "e1ed8f81-14a2-44c8-81aa-f48afa2231e3",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "tableId": "fb_chats",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "page_id",
+              "fieldValue": "={{ $('StructureData').item.json.page_id }}"
+            },
+            {
+              "fieldId": "sender_id",
+              "fieldValue": "={{ $('StructureData').item.json.sender_id }}"
+            },
+            {
+              "fieldId": "recipient_id",
+              "fieldValue": "={{ $('StructureData').item.json.recipient_id }}"
+            },
+            {
+              "fieldId": "timestamp",
+              "fieldValue": "={{ $('StructureData').item.json.timestamp }}"
+            },
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $('StructureData').item.json.message_id }}"
+            },
+            {
+              "fieldId": "text",
+              "fieldValue": "={{ $('StructureData').item.json.text }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "pending"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1264,
+        1216
+      ],
+      "id": "de769304-10da-446a-b673-b71672834816",
+      "name": "SaveToChats"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "fb_chats",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "message_id",
+              "keyValue": "={{ $('StructureData').first().json.message_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        784,
+        1200
+      ],
+      "id": "f6b00eaf-6881-46da-91ee-6a56f6421f9e",
+      "name": "ExistsMessage",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v22.0/{{ $('StructureTextOutput').item.json.page_id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('PageAccessToken').last().json.page_access_token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"recipient\": {\n    \"id\": \"{{ $('StructureTextOutput').item.json.sender_id }}\"\n  },\n  \"message\": {\n    \"text\": {{ $('StructureTextOutput').item.json.output }}\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4096,
+        992
+      ],
+      "id": "cbb10b30-79ea-4bf6-b1c5-b4280f68ade5",
+      "name": "SendMessage"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v22.0/{{ $json.page_id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('PageAccessToken').last().json.page_access_token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"recipient\": {\n    \"id\": {{ $json.sender_id }}\n  },\n  \"sender_action\":\"typing_on\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3616,
+        992
+      ],
+      "id": "72f3e73e-9429-42d3-82c2-572e95343646",
+      "name": "SendTypingOn",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "02d72cf3-bcee-4e2a-866d-91a3ff41edaa",
+              "leftValue": "={{ $json.message_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1024,
+        1200
+      ],
+      "id": "3af36a86-9cc4-480b-a134-7d0547f7e181",
+      "name": "NotFoundMessage",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2cedc0a7-8b32-4b46-ab19-6c157e21268b",
+              "name": "page_id",
+              "value": "={{ $json.page_id }}",
+              "type": "string"
+            },
+            {
+              "id": "c9b6c3ed-40d0-4c27-b3f4-84661a6c8cee",
+              "name": "sender_id",
+              "value": "={{ $json.sender_id }}",
+              "type": "string"
+            },
+            {
+              "id": "d985d779-d0b0-4a56-bdef-15019e8d68ef",
+              "name": "recipient_id",
+              "value": "={{ $json.recipient_id }}",
+              "type": "string"
+            },
+            {
+              "id": "29d991a0-5395-4d62-aff3-e5739b0ddf83",
+              "name": "timestamp",
+              "value": "={{ $json.timestamp }}",
+              "type": "string"
+            },
+            {
+              "id": "4b38a917-b656-4e5a-be18-a2077557f2cf",
+              "name": "message_id",
+              "value": "={{ $json.message_id }}",
+              "type": "string"
+            },
+            {
+              "id": "6c438dce-30b3-479e-a56a-1048c0ec39c9",
+              "name": "text",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        48,
+        1200
+      ],
+      "id": "777657c7-2aa0-4488-acbf-99ed127d2bb9",
+      "name": "StructureData"
+    },
+    {
+      "parameters": {
+        "content": "## AI Agent\n- Lấy nội dung trả lời cho người dùng.\n- Lưu psid nếu sản phẩm lớn hơn 1 triệu",
+        "height": 500,
+        "width": 700
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        736,
+        1728
+      ],
+      "typeVersion": 1,
+      "id": "ccc128a6-cc2d-430b-b100-f5ba565de983",
+      "name": "Sticky Note10"
+    },
+    {
+      "parameters": {
+        "content": "## Structure Lại dữ liệu trước khi gửi trả lời người dùng\n- Cấu trúc lại dữ liệu và fix lỗi khi khi gửi bị lỗi JSON error\n- Kiểm tra xem psid có nằm trong danh sách vip ko, nếu có thì dừng lại",
+        "height": 300,
+        "width": 1032
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2448,
+        880
+      ],
+      "typeVersion": 1,
+      "id": "fb6d03d8-d82b-466c-898d-4eb11e092d89",
+      "name": "Sticky Note11"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d65dbf39-714b-450d-8a30-384483b5e8aa",
+              "name": "output",
+              "value": "={{ JSON.stringify($('AI Agent').item.json.output) }}",
+              "type": "string"
+            },
+            {
+              "id": "aea834b4-09af-4312-b8a3-7ae64c38e5e7",
+              "name": "page_id",
+              "value": "={{ $('MergeMessage').first().json.page_id }}",
+              "type": "string"
+            },
+            {
+              "id": "df7d9604-23bb-43d6-930f-b562622401e9",
+              "name": "sender_id",
+              "value": "={{ $('MergeMessage').first().json.sender_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3312,
+        1040
+      ],
+      "id": "4dd5e0ff-748d-4ebb-9c78-93b6857b3879",
+      "name": "StructureTextOutput"
+    },
+    {
+      "parameters": {
+        "content": "## Typing And Send Message\n- Để wait 1 giây (Cái này tùy chỉnh) sau đó sẽ trả lời",
+        "height": 300,
+        "width": 700
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        3568,
+        880
+      ],
+      "typeVersion": 1,
+      "id": "faa8f5a5-ac0d-4d79-93c3-b9bf6e649ad1",
+      "name": "Sticky Note12"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3856,
+        992
+      ],
+      "id": "63e4dd1a-dd26-4104-b265-ca2baa6dfc03",
+      "name": "Wait",
+      "webhookId": "378864f4-a530-4017-8285-683a16451d7b"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "=https://docs.google.com/spreadsheets/d/1C7St3j34WHPkc3J6MWo1HIWQHUdF-PFLqqtFIQs5jIg/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Page",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1C7St3j34WHPkc3J6MWo1HIWQHUdF-PFLqqtFIQs5jIg/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "page_id",
+              "lookupValue": "={{ $('StructureData').last().json.page_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        784,
+        1872
+      ],
+      "id": "89f0de32-0b9a-4134-bf54-cca6a08091a5",
+      "name": "PromptSheet"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "6c20825f-4cae-4d4b-9558-4c4a10045d99",
+              "leftValue": "={{ $('GetAllMessage').first().json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "number",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        176,
+        2080
+      ],
+      "id": "24163094-1bb5-45e9-9f0d-f2b6f7157d1b",
+      "name": "IFExistsMessage"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    ... $('GetAllMessage').last().json,\n    text: $('GetAllMessage').all().map(m => m.json.text)\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        496,
+        1872
+      ],
+      "id": "4900fdc7-889f-46db-8a75-39da19affb0e",
+      "name": "MergeMessage"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "fb_chats",
+        "filterType": "string",
+        "filterString": "=id=in.({{ $('GetAllMessage').all().map(item => item.json.id) }})",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "done"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        304,
+        1872
+      ],
+      "id": "c2bc5cda-4045-43da-b3ed-c1c1e4235b9d",
+      "name": "UpdateDoneMessage",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "fb_chats",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "page_id",
+              "keyValue": "={{ $('SaveToChats').item.json.page_id }}"
+            },
+            {
+              "keyName": "sender_id",
+              "keyValue": "={{ $('SaveToChats').item.json.sender_id }}"
+            },
+            {
+              "keyName": "status",
+              "keyValue": "pending"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        64,
+        1872
+      ],
+      "id": "2bff995e-9680-499b-8aee-7ee607999346",
+      "name": "GetAllMessage"
+    },
+    {
+      "parameters": {
+        "content": "## Gộp tin nhắn và chuẩn hóa đầu vào\n- Gộp các tin nhắn pending",
+        "height": 500,
+        "width": 680
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        16,
+        1728
+      ],
+      "typeVersion": 1,
+      "id": "bf9652e8-4499-466f-8485-c25a37ac3c84",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "table": "fb_n8n_debounce",
+        "key": "={{ $('StructureData').first().json.page_id }}_{{ $('StructureData').first().json.sender_id }}",
+        "waitTime": 3
+      },
+      "type": "n8n-nodes-debounce.debouncePostgres",
+      "typeVersion": 1,
+      "position": [
+        48,
+        1552
+      ],
+      "id": "9b3a8ebc-d33b-4a25-a40e-45fb310186f7",
+      "name": "Debounce Postgres"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1C7St3j34WHPkc3J6MWo1HIWQHUdF-PFLqqtFIQs5jIg/edit?gid=2059027838#gid=2059027838",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Page",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1C7St3j34WHPkc3J6MWo1HIWQHUdF-PFLqqtFIQs5jIg/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "page_id",
+              "lookupValue": "={{ $('StructureData').last().json.page_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        416,
+        1200
+      ],
+      "id": "b20b3f5a-61d9-43a2-8416-478b5067a870",
+      "name": "PageAccessToken"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2976,
+        1488
+      ],
+      "id": "7e126c12-dec8-428e-9ebe-9688798f2731",
+      "name": "OpenAI Chat Model2"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"array\",\n  \"items\": {\n    \"type\": \"object\",\n    \"properties\": {\n      \"text\": {\n        \"type\": \"string\"\n      },\n      \"image\": {\n        \"type\": \"array\",\n        \"items\": {\n          \"type\": \"string\",\n          \"format\": \"uri\"\n        }\n      }\n    },\n    \"required\": [\"text\", \"image\"]\n  }\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        3280,
+        1504
+      ],
+      "id": "c0d66836-e58e-4f62-b782-edafa7bdd2ec",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('AI Agent').item.json.output }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Chuyển đoạn nội dung dưới đây thành mảng JSON theo format: [{ \"text\": \"nd\", \"image\": [\"url1\", \"url2\"] }] Với mỗi mục, \"text\" là phần mô tả của hình ảnh và \"image\" là mảng chứa link các ảnh trong mục đó. Bỏ qua định dạng Markdown, chỉ lấy nội dung và link ảnh."
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.6,
+      "position": [
+        3104,
+        1296
+      ],
+      "id": "00e82c19-c79a-498e-a484-c777a7a50b96",
+      "name": "Basic LLM Chain",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "output",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        3408,
+        1296
+      ],
+      "id": "1aede4df-4acc-4aed-b3c3-3ad288f64e12",
+      "name": "Split Out2"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ encodeURI($json.image) }}",
+                    "rightValue": "/https?:\\/\\/[^\\s]+?\\.(jpg|jpeg|png|gif|webp)(\\?[^\\s]*)?/gi",
+                    "operator": {
+                      "type": "string",
+                      "operation": "regex"
+                    },
+                    "id": "5bfc1fd6-bf94-4cae-b1fe-266c29502ad6"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "link"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "4aa7cbe6-2423-490c-8b4d-9bbc8b951b75",
+                    "leftValue": "={{ $json.image }}",
+                    "rightValue": "https?://(?:drive\\.google\\.com|docs\\.google\\.com)/[^\\s\"']+",
+                    "operator": {
+                      "type": "string",
+                      "operation": "regex"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "driver"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        4672,
+        1440
+      ],
+      "id": "8f8bd70c-17b0-43a7-88f2-a75e26475b09",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        3696,
+        1440
+      ],
+      "id": "1feb71de-4450-479c-9830-fd5c9b538d6b",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        4080,
+        2096
+      ],
+      "id": "573aefe8-e58c-4251-aa68-a2e3d09a7527",
+      "name": "Wait1",
+      "webhookId": "cd206bd9-4224-42de-b5e2-61ba9bdadf32"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        4080,
+        1840
+      ],
+      "id": "5dffb6da-5a84-441f-9d7a-3edf87a635a3",
+      "name": "Wait2",
+      "webhookId": "6d4c330d-4cc8-4494-85ca-633f206daefa"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v22.0/{{ $('PageAccessToken').last().json.page_id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('PageAccessToken').last().json.page_access_token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"recipient\": {\n    \"id\": \"{{ $('MergeMessage').first().json.sender_id }}\"\n  },\n  \"message\": {\n   \"attachment\": {\n      \"type\": \"image\",\n      \"payload\": {\n          \"attachment_id\": \"{{ $json.attachment_id }}\"\n        }\n    }\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4304,
+        1840
+      ],
+      "id": "fedcbdd9-fe05-40c8-a917-1913d66e244f",
+      "name": "SendAttachment",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2880,
+        1296
+      ],
+      "id": "bf3509ca-8418-4df6-9404-9055258a77a8",
+      "name": "NextProcessLink"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "23d79f11-c9a3-4071-96c4-b3cb29d32fa9",
+              "leftValue": "={{ $('AI Agent').item.json.output }}",
+              "rightValue": "https?://[^\\s\"']+",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3024,
+        1040
+      ],
+      "id": "a2c682b4-9e03-4bc8-b926-c2cc4b05c2c6",
+      "name": "IfLinkExists"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v22.0/{{ $('PageAccessToken').last().json.page_id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('PageAccessToken').last().json.page_access_token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"recipient\": {\n    \"id\": \"{{ $('MergeMessage').first().json.sender_id }}\"\n  },\n  \"message\": {\n    \"text\": {{ JSON.stringify($('IfExists').item.json.text) }}\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4304,
+        2096
+      ],
+      "id": "d1b07a80-6d68-4a57-b61c-aa2549c5886b",
+      "name": "SendMessage2",
+      "alwaysOutputData": false,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v22.0/{{ $('PageAccessToken').item.json.page_id }}/conversations",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "={{ $('StructureData').item.json.sender_id }}"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('PageAccessToken').last().json.page_access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        1536
+      ],
+      "id": "ed3b1870-4135-4600-9e72-b7e2ed47468f",
+      "name": "GetConversion"
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v22.0/{{ $json.id }}/messages",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "fields",
+              "value": "message,from"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('PageAccessToken').last().json.page_access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        944,
+        1536
+      ],
+      "id": "389e616d-7d03-4314-a920-e8f313c8d88c",
+      "name": "GetOldMessage"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        704,
+        1536
+      ],
+      "id": "d2863a00-55f1-46b7-85be-ad3ecd0902a1",
+      "name": "Split Out4"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1504,
+        1072
+      ],
+      "id": "3175459e-916b-4b0e-9e50-25c8a9081e06",
+      "name": "Stop"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "22949b09-770e-431c-8838-6488d9deb41d",
+              "leftValue": "={{ $json.data[0].from.id }}",
+              "rightValue": "={{ $('StructureData').last().json.page_id }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1280,
+        1536
+      ],
+      "id": "ba446ff1-08ac-49a2-92d3-22def2017ec3",
+      "name": "IfPageReplyExists"
+    },
+    {
+      "parameters": {
+        "content": "## Tìm thread và lấy ra các tin nhắn đã gửi nhận\nLấy tin nhắn gửi nhận để kiểm tra xem chủ trang có tham gia chat trực tiếp với khách hay không. nếu chủ trang đã trả lời khách thì stop bot",
+        "height": 264,
+        "width": 680
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        432,
+        1408
+      ],
+      "typeVersion": 1,
+      "id": "8c980cf3-c042-45b9-a0a6-c8fec78682f8",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "## Kiểm tra xem có phải chủ Trang đã trả lời tin nhắn\nNếu chủ Trang đã trả lời tin nhắn thì không trả lời nữa\n",
+        "height": 264,
+        "width": 400
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1152,
+        1408
+      ],
+      "typeVersion": 1,
+      "id": "05b66ed1-9d64-486e-b862-f8df30e31f68",
+      "name": "Sticky Note9"
+    },
+    {
+      "parameters": {
+        "content": "## Chờ để gom tin nhắn ngắt quãng hoặc chờ chủ trang trả lời (cài node n8n-nodes-debounce)",
+        "height": 264,
+        "width": 380
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        16,
+        1408
+      ],
+      "typeVersion": 1,
+      "id": "32704525-1438-48e6-a09f-371132d8eb20",
+      "name": "Sticky Note14"
+    },
+    {
+      "parameters": {
+        "content": "## Nếu trong nội dung có link (Ảnh hoặc file)\nSử dụng AI để tách nội dung và link ảnh riêng để phục vụ gửi attachment",
+        "height": 380,
+        "width": 680
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2880,
+        1216
+      ],
+      "typeVersion": 1,
+      "id": "5a51b27e-c0d6-4592-a73d-4f8727ab2e09",
+      "name": "Sticky Note15"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "4a008533-4c98-4124-b3b5-e13b3f1e22a9",
+              "leftValue": "={{ $json.image }}",
+              "rightValue": "",
+              "operator": {
+                "type": "array",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3952,
+        1440
+      ],
+      "id": "1b820a84-8df5-4b00-951d-3fee18b01290",
+      "name": "IfExists"
+    },
+    {
+      "parameters": {
+        "content": "## Tách riêng thành từng link ảnh",
+        "height": 300,
+        "width": 680
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        3872,
+        1360
+      ],
+      "typeVersion": 1,
+      "id": "cfd99459-fd1b-4c06-824e-d1e1079f7141",
+      "name": "Sticky Note16"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "image",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        4336,
+        1440
+      ],
+      "id": "bd471f8a-6ca0-4408-ae37-dcd8fe7fb987",
+      "name": "Split Out3"
+    },
+    {
+      "parameters": {
+        "content": "## Xử lý ảnh theo từng loại và upload lên fb",
+        "height": 480,
+        "width": 700
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        4624,
+        1184
+      ],
+      "typeVersion": 1,
+      "id": "4b5e8688-c842-4ae3-818c-15a2c02ed6e9",
+      "name": "Sticky Note17"
+    },
+    {
+      "parameters": {
+        "content": "## Gửi attachment ảnh",
+        "height": 280,
+        "width": 680
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        4032,
+        1696
+      ],
+      "typeVersion": 1,
+      "id": "d9d42d79-07da-40c4-8f99-7e8168087957",
+      "name": "Sticky Note18"
+    },
+    {
+      "parameters": {
+        "tableId": "fb_chats",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "page_id",
+              "fieldValue": "={{ $('StructureData').last().json.page_id }}"
+            },
+            {
+              "fieldId": "sender_id",
+              "fieldValue": "={{ $('StructureData').last().json.page_id }}"
+            },
+            {
+              "fieldId": "recipient_id",
+              "fieldValue": "={{ $json.recipient_id }}"
+            },
+            {
+              "fieldId": "timestamp",
+              "fieldValue": "={{ $('StructureData').last().json.timestamp }}"
+            },
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $json.message_id }}"
+            },
+            {
+              "fieldId": "text",
+              "fieldValue": "={{ $('StructureTextOutput').item.json.output }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "done"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        4368,
+        992
+      ],
+      "id": "a1f9ab64-8ee6-4650-aba8-630dfb7aa523",
+      "name": "SaveToChats2"
+    },
+    {
+      "parameters": {
+        "tableId": "fb_chats",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "page_id",
+              "fieldValue": "={{ $('StructureData').last().json.page_id }}"
+            },
+            {
+              "fieldId": "sender_id",
+              "fieldValue": "={{ $('StructureData').last().json.page_id }}"
+            },
+            {
+              "fieldId": "recipient_id",
+              "fieldValue": "={{ $json.recipient_id }}"
+            },
+            {
+              "fieldId": "timestamp",
+              "fieldValue": "={{ $('StructureData').last().json.timestamp }}"
+            },
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $json.message_id }}"
+            },
+            {
+              "fieldId": "text",
+              "fieldValue": "= "
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "done"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        4512,
+        1840
+      ],
+      "id": "47bd7563-48e6-478d-91b6-b161e966c77f",
+      "name": "SaveToChats3"
+    },
+    {
+      "parameters": {
+        "tableId": "fb_chats",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "page_id",
+              "fieldValue": "={{ $('StructureData').last().json.page_id }}"
+            },
+            {
+              "fieldId": "sender_id",
+              "fieldValue": "={{ $('StructureData').last().json.page_id }}"
+            },
+            {
+              "fieldId": "recipient_id",
+              "fieldValue": "={{ $json.recipient_id }}"
+            },
+            {
+              "fieldId": "timestamp",
+              "fieldValue": "={{ $('StructureData').last().json.timestamp }}"
+            },
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $json.message_id }}"
+            },
+            {
+              "fieldId": "text",
+              "fieldValue": "={{ $('IfExists').item.json.text }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "done"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        4512,
+        2096
+      ],
+      "id": "83a0a44c-be9c-429e-8fc9-5fde2d17d848",
+      "name": "SaveToChats4"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        3872,
+        2096
+      ],
+      "id": "ebc43271-7ca5-4f97-99d5-c7a8197604a9",
+      "name": "Nếu không có ảnh"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v22.0/{{ $('PageAccessToken').last().json.page_id }}/message_attachments",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('PageAccessToken').last().json.page_access_token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "filedata",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "message",
+              "value": "{\"attachment\":{\"type\":\"image\",\"payload\":{}}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5168,
+        1504
+      ],
+      "id": "0102135a-4630-4fd2-b490-e49587bd9c3a",
+      "name": "upload_attachments_drive"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v22.0/{{ $('PageAccessToken').last().json.page_id }}/message_attachments",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('PageAccessToken').last().json.page_access_token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "message",
+              "value": "={\"attachment\":{\"type\":\"image\",\"payload\": {url:\"{{ $json.image }}\",is_reusable:true}}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5168,
+        1312
+      ],
+      "id": "8526e7e5-8ba0-4400-b8f2-8aab31133161",
+      "name": "upload_attachments_link"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        4864,
+        1312
+      ],
+      "id": "877f17b2-6c4c-4766-ba3b-19221aba0dba",
+      "name": "NextUpload"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        5392,
+        1504
+      ],
+      "id": "36876fe2-4d63-441a-9498-af812e60792b",
+      "name": "UpAttachmentSuccess"
+    },
+    {
+      "parameters": {
+        "content": "## Gửi tin nhắn sau ảnh\nGửi tin nhắn ngay sau ảnh",
+        "height": 260,
+        "width": 680
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        4032,
+        2016
+      ],
+      "typeVersion": 1,
+      "id": "97d2d5fa-5128-4079-b176-59288115637b",
+      "name": "Sticky Note20"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.image }}",
+          "mode": "url"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        4864,
+        1504
+      ],
+      "id": "d943d605-f9b3-493c-93fa-aeca652e321b",
+      "name": "Download file"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a4144d15-29fe-4870-ad02-9553ccd3f5ee",
+              "leftValue": "={{ $json.query[\"hub.mode\"] }}",
+              "rightValue": "subscribe",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "e5f35eb3-ab21-4fe2-9b51-aefed012fc98",
+              "leftValue": "={{ $json.query[\"hub.verify_token\"] }}",
+              "rightValue": "=123456",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        48,
+        480
+      ],
+      "id": "a7530f22-8635-4e1f-829b-665125312ee3",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "content": "## Xác thực facebook app webhook\n",
+        "height": 380,
+        "width": 680
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        320
+      ],
+      "typeVersion": 1,
+      "id": "bb8423f9-f5f8-45a5-ab6a-ed60807c9383",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Response ngay sau khi nhận được dữ liệu\n- Facebook sẽ bắn lại tin nhắn nếu bị coi là false",
+        "height": 300,
+        "width": 680
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        720
+      ],
+      "typeVersion": 1,
+      "id": "445cfa46-ffb4-47ff-8bc9-2b573331500f",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "multipleMethods": true,
+        "path": "fbmessager",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -352,
+        688
+      ],
+      "id": "20121945-87ef-4a2a-80bf-15d5fbf197ce",
+      "name": "Webhook",
+      "webhookId": "84b7cec3-c047-4f9a-aff2-ca16706d2e66"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.query[\"hub.challenge\"] }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.2,
+      "position": [
+        480,
+        400
+      ],
+      "id": "a46ca408-6ddd-45d4-a136-d64e5b075050",
+      "name": "Verify success"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"error\": true\n}",
+        "options": {
+          "responseCode": 403
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.2,
+      "position": [
+        480,
+        560
+      ],
+      "id": "b3e7dcab-be25-4b5f-b89b-ae5db88c65fa",
+      "name": "Verify fail"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "EVENT_RECEIVED",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.2,
+      "position": [
+        48,
+        880
+      ],
+      "id": "fe524131-6090-4951-ab56-2f18a0502c3d",
+      "name": "RECEIVED",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "body.entry",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        768,
+        880
+      ],
+      "id": "c3513c03-4008-4890-9ac0-39a7e73e7742",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "content": "## Phân tách dữ liệu từ entry và messaging\n",
+        "height": 300,
+        "width": 700
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        720,
+        720
+      ],
+      "typeVersion": 1,
+      "id": "15922ab7-efb4-4ee5-8129-cc25a09171a9",
+      "name": "Sticky Note8"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "messaging",
+        "include": "allOtherFields",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1056,
+        880
+      ],
+      "id": "d4dd6052-8c08-439d-b02e-a6a768a20de4",
+      "name": "Split Message"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2cedc0a7-8b32-4b46-ab19-6c157e21268b",
+              "name": "page_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "c9b6c3ed-40d0-4c27-b3f4-84661a6c8cee",
+              "name": "sender_id",
+              "value": "={{ $json.messaging.sender.id }}",
+              "type": "string"
+            },
+            {
+              "id": "d985d779-d0b0-4a56-bdef-15019e8d68ef",
+              "name": "recipient_id",
+              "value": "={{ $json.messaging.recipient.id }}",
+              "type": "string"
+            },
+            {
+              "id": "29d991a0-5395-4d62-aff3-e5739b0ddf83",
+              "name": "timestamp",
+              "value": "={{ $json.messaging.timestamp }}",
+              "type": "string"
+            },
+            {
+              "id": "4b38a917-b656-4e5a-be18-a2077557f2cf",
+              "name": "message_id",
+              "value": "={{ $json.messaging.message.mid }}",
+              "type": "string"
+            },
+            {
+              "id": "6c438dce-30b3-479e-a56a-1048c0ec39c9",
+              "name": "text",
+              "value": "={{ $json.messaging.message.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1280,
+        880
+      ],
+      "id": "d663e30b-9ebe-40ea-8ba4-bdea4a2bfff2",
+      "name": "Map data"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        64,
+        128
+      ],
+      "id": "348ede6b-28d8-4d42-a5b3-8c914114703b",
+      "name": "When clicking ‘Test workflow’"
+    },
+    {
+      "parameters": {
+        "content": "## Chạy lệnh tạo cơ sở dữ liệu\n- Xác thực với Postgress ở trên supabase rồi chạy lệnh này để auto tạo sẵn các bảng\n- Sau khi tạo bảng xong thì bạn có thể xóa đoạn flow này đi",
+        "height": 300,
+        "width": 680
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "6fde51d2-b442-49ec-9491-e9a14207760d",
+      "name": "Sticky Note19"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1504,
+        1520
+      ],
+      "id": "910a3daf-9c76-4e2e-b5fd-ca65a5f7a559",
+      "name": "Stop1"
+    },
+    {
+      "parameters": {
+        "description": "sử dụng công cụ này để lưu thông tin khách hàng vip khi giá sản phẩm lớn hơn 1 triệu",
+        "workflowId": {
+          "__rl": true,
+          "value": "KKtntbOrBMmHsdYB",
+          "mode": "list",
+          "cachedResultName": "Add vip"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "psid": "={{ $('StructureData').last().json.sender_id }}",
+            "name": "={{ $('GetOldMessage').item.json.data[0].from.name }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "psid",
+              "displayName": "psid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1168,
+        2144
+      ],
+      "id": "e2b063c0-9cff-4863-a88e-1d736a082cb7",
+      "name": "add_vip"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1C7St3j34WHPkc3J6MWo1HIWQHUdF-PFLqqtFIQs5jIg",
+          "mode": "list",
+          "cachedResultName": "Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1C7St3j34WHPkc3J6MWo1HIWQHUdF-PFLqqtFIQs5jIg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1272075815,
+          "mode": "list",
+          "cachedResultName": "Vip",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1C7St3j34WHPkc3J6MWo1HIWQHUdF-PFLqqtFIQs5jIg/edit#gid=1272075815"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Psid",
+              "lookupValue": "={{ $('StructureData').last().json.sender_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        2672,
+        1024
+      ],
+      "id": "b6d60cd0-1848-4c93-940e-62130fecc1cb",
+      "name": "Get row(s) in sheet",
+      "alwaysOutputData": true,
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7a37a5c5-b4c1-43ba-b57a-5fc93ad7160b",
+              "leftValue": "={{ $json.Psid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "number",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2832,
+        1024
+      ],
+      "id": "dfc9b78a-b5e4-42bf-912d-3d2370e37b90",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2448,
+        1024
+      ],
+      "id": "d5ea54e7-413e-4c3d-8a25-3e0d74bfef28",
+      "name": "Wait4",
+      "webhookId": "e7111a5a-26d7-4352-8336-1889515e598d"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "sử dụng công cụ này để tra cứu thông tin sản phẩm",
+        "documentId": {
+          "__rl": true,
+          "value": "1C7St3j34WHPkc3J6MWo1HIWQHUdF-PFLqqtFIQs5jIg",
+          "mode": "list",
+          "cachedResultName": "Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1C7St3j34WHPkc3J6MWo1HIWQHUdF-PFLqqtFIQs5jIg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 450706954,
+          "mode": "list",
+          "cachedResultName": "Product",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1C7St3j34WHPkc3J6MWo1HIWQHUdF-PFLqqtFIQs5jIg/edit#gid=450706954"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.6,
+      "position": [
+        1488,
+        2112
+      ],
+      "id": "d00b010b-fa83-464b-b13a-bc334ba6373a",
+      "name": "product1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "create table public.fb_chats (\n  id bigint generated by default as identity not null,\n  page_id text null,\n  sender_id text null,\n  recipient_id text null,\n  message_id text null,\n  text text null,\n  timestamp bigint null,\n  status character varying null default 'pending'::character varying,\n  created_at timestamp with time zone null default now(),\n  constraint fb_chats_pkey primary key (id),\n  constraint fb_chats_message_id_key unique (message_id)\n) TABLESPACE pg_default;\ncreate table public.fb_included_users (\n  id bigint generated by default as identity not null,\n  page_id text not null,\n  sender_id text null,\n  created_at timestamp with time zone not null default now(),\n  key text not null,\n  constraint fb_included_users_pkey primary key (id),\n  constraint fb_included_users_key_key unique (key),\n  constraint fb_included_users_key_key1 unique (key)\n) TABLESPACE pg_default;\ncreate table public.fb_n8n_debounce (\n  id bigint generated by default as identity not null,\n  key text not null,\n  incr bigint null default '0'::bigint,\n  constraint n8n_debounce_pkey primary key (id),\n  constraint n8n_debounce_key_key unique (key)\n) TABLESPACE pg_default;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        352,
+        128
+      ],
+      "id": "fc182019-a002-4516-b4d5-a0ac7eb09d53",
+      "name": "Postgres"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v22.0/{{ $('MergeMessage').first().json.page_id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('PageAccessToken').last().json.page_access_token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"recipient\": {\n    \"id\": \"{{ $('MergeMessage').first().json.sender_id }}\"\n  },\n  \"message\": {\n      \"text\": \"Cảm ơn thông tin của bạn. Chúng tôi sẽ chuyển sang sale tư vấn.\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3152,
+        912
+      ],
+      "id": "cf4ef170-5c36-4483-91dc-fa7e773dee3b",
+      "name": "SendMessageStop"
+    },
+    {
+      "parameters": {
+        "description": "Lưu lại thông tin đơn hàng khi đặt hàng bao gồm sđt, psid, tên khách hàng, tên sản phẩm, địa chỉ. ",
+        "workflowId": {
+          "__rl": true,
+          "value": "HJ7crpR8x02isR1D",
+          "mode": "list",
+          "cachedResultName": "Save Order"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "phone": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('phone', ``, 'string') }}",
+            "psid": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('psid', ``, 'string') }}",
+            "name": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('name', ``, 'string') }}",
+            "product": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('product', ``, 'string') }}",
+            "address": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('address', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "psid",
+              "displayName": "psid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "product",
+              "displayName": "product",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "address",
+              "displayName": "address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1328,
+        2128
+      ],
+      "id": "26c47934-94cd-4a34-b5ce-5813615f12d3",
+      "name": "product2"
+    }
+  ],
+  "pinData": {
+    "Webhook": []
+  },
+  "connections": {
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Wait4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SaveToChats": {
+      "main": [
+        [
+          {
+            "node": "Debounce Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ExistsMessage": {
+      "main": [
+        [
+          {
+            "node": "NotFoundMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SendMessage": {
+      "main": [
+        [
+          {
+            "node": "SaveToChats2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SendTypingOn": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NotFoundMessage": {
+      "main": [
+        [
+          {
+            "node": "Stop",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SaveToChats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "StructureData": {
+      "main": [
+        [
+          {
+            "node": "PageAccessToken",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "StructureTextOutput": {
+      "main": [
+        [
+          {
+            "node": "SendTypingOn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "SendMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PromptSheet": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IFExistsMessage": {
+      "main": [
+        [
+          {
+            "node": "UpdateDoneMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MergeMessage": {
+      "main": [
+        [
+          {
+            "node": "PromptSheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UpdateDoneMessage": {
+      "main": [
+        [
+          {
+            "node": "MergeMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GetAllMessage": {
+      "main": [
+        [
+          {
+            "node": "IFExistsMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PageAccessToken": {
+      "main": [
+        [
+          {
+            "node": "ExistsMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Split Out2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "NextUpload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "IfExists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "SendMessage2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait2": {
+      "main": [
+        [
+          {
+            "node": "SendAttachment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SendAttachment": {
+      "main": [
+        [
+          {
+            "node": "SaveToChats3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NextProcessLink": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfLinkExists": {
+      "main": [
+        [
+          {
+            "node": "NextProcessLink",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "StructureTextOutput",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SendMessage2": {
+      "main": [
+        [
+          {
+            "node": "SaveToChats4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GetConversion": {
+      "main": [
+        [
+          {
+            "node": "Split Out4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GetOldMessage": {
+      "main": [
+        [
+          {
+            "node": "IfPageReplyExists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out4": {
+      "main": [
+        [
+          {
+            "node": "GetOldMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfPageReplyExists": {
+      "main": [
+        [
+          {
+            "node": "Stop1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "GetAllMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfExists": {
+      "main": [
+        [
+          {
+            "node": "Split Out3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Nếu không có ảnh",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out3": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SaveToChats3": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SaveToChats4": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nếu không có ảnh": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "upload_attachments_drive": {
+      "main": [
+        [
+          {
+            "node": "UpAttachmentSuccess",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "upload_attachments_link": {
+      "main": [
+        [
+          {
+            "node": "UpAttachmentSuccess",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NextUpload": {
+      "main": [
+        [
+          {
+            "node": "upload_attachments_link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UpAttachmentSuccess": {
+      "main": [
+        [
+          {
+            "node": "Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file": {
+      "main": [
+        [
+          {
+            "node": "upload_attachments_drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Verify success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Verify fail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "RECEIVED",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RECEIVED": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Split Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Message": {
+      "main": [
+        [
+          {
+            "node": "Map data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map data": {
+      "main": [
+        [
+          {
+            "node": "StructureData",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Test workflow’": {
+      "main": [
+        [
+          {
+            "node": "Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Debounce Postgres": {
+      "main": [
+        [
+          {
+            "node": "GetConversion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "add_vip": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "SendMessageStop",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IfLinkExists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait4": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "product1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "product2": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1c5034a9-3aba-4cf1-94fd-3fa98148beaa",
+  "meta": {
+    "instanceId": "4f8be86c7e6fc2ab223bed30484d39fcac64f36e78bcba82abd606a8dfaf4b4e"
+  },
+  "id": "QlFiUHQfZtywvPyA",
+  "tags": []
+}

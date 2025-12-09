@@ -1,0 +1,344 @@
+{
+  "name": "Download Douyin",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -384,
+        -176
+      ],
+      "id": "d1497d0e-7a89-43f1-9c5f-5fd00e534ed2",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "path": "=/Videos/video{{ $('Count File').item.json.count }}.mp4",
+        "binaryDataUpload": true,
+        "binaryPropertyName": "={{ $('Download').first().binary.data }}"
+      },
+      "type": "n8n-nodes-base.nextCloud",
+      "typeVersion": 1,
+      "position": [
+        528,
+        0
+      ],
+      "id": "b3967157-fc03-44e8-afdf-56fc7df7f230",
+      "name": "Upload a file",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "nextCloudApi": {
+          "id": "FPKXuHCTz8nntR7N",
+          "name": "NextCloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "formTitle": "Download Douyin Video",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Share URL",
+              "placeholder": "https://v.douyin.com/e3x2fjE/",
+              "requiredField": true
+            }
+          ]
+        },
+        "responseMode": "lastNode",
+        "options": {
+          "buttonLabel": "Download",
+          "path": "download-douyin"
+        }
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [
+        -400,
+        80
+      ],
+      "id": "2a348836-9d81-4c35-bf4f-eec0130f6381",
+      "name": "On form submission",
+      "webhookId": "6badb4b8-2d8a-489b-a20e-ec951675943d"
+    },
+    {
+      "parameters": {
+        "resource": "folder",
+        "operation": "list",
+        "path": "/Videos"
+      },
+      "type": "n8n-nodes-base.nextCloud",
+      "typeVersion": 1,
+      "position": [
+        272,
+        16
+      ],
+      "id": "9360895a-f2a9-46f8-9bd2-09a9679b5a34",
+      "name": "List a folder",
+      "alwaysOutputData": true,
+      "credentials": {
+        "nextCloudApi": {
+          "id": "FPKXuHCTz8nntR7N",
+          "name": "NextCloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.data.aweme_detail.video.play_addr_265.url_list[0] }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        16,
+        16
+      ],
+      "id": "4216ecf6-054c-480b-80b1-93ed5965bc36",
+      "name": "Download"
+    },
+    {
+      "parameters": {
+        "url": "https://api.tikhub.io/api/v1/douyin/app/v3/fetch_one_video_by_share_url",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "share_url",
+              "value": "={{ $json['Share URL'] }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -128,
+        -176
+      ],
+      "id": "1caf261e-a23e-4ac4-b567-6569a703854b",
+      "name": "Get URL",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "ijjQll86vTsYkcAk",
+          "name": "Bearer Auth Tikhub"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst items = $('List a folder').all();\n\n// Lọc những item có ít nhất một key trong json\nconst nonEmptyItems = items.filter(item => Object.keys(item.json).length > 0);\n\nreturn [{ json: { count: nonEmptyItems.length + 1 } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        -192
+      ],
+      "id": "7c1fcb44-1375-422e-ae26-6072c51cc2e6",
+      "name": "Count File"
+    },
+    {
+      "parameters": {
+        "resource": "folder",
+        "path": "/Videos"
+      },
+      "type": "n8n-nodes-base.nextCloud",
+      "typeVersion": 1,
+      "position": [
+        144,
+        -176
+      ],
+      "id": "68fbafe6-8c04-4919-ba0d-96e88b7be952",
+      "name": "Create a folder",
+      "credentials": {
+        "nextCloudApi": {
+          "id": "FPKXuHCTz8nntR7N",
+          "name": "NextCloud account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "share",
+        "path": "=/Videos/video{{ $('Count File').item.json.count }}.mp4",
+        "shareType": 3,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.nextCloud",
+      "typeVersion": 1,
+      "position": [
+        656,
+        -192
+      ],
+      "id": "c45cda30-7506-4fd4-b51a-c3d90c4e75e7",
+      "name": "Share a file",
+      "credentials": {
+        "nextCloudApi": {
+          "id": "FPKXuHCTz8nntR7N",
+          "name": "NextCloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "completionTitle": "Your Video Download Completed",
+        "completionMessage": "Link: ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.3,
+      "position": [
+        816,
+        0
+      ],
+      "id": "e12b2211-dab5-4262-920c-60ed93600b34",
+      "name": "Form",
+      "webhookId": "d96ab836-4e16-41eb-aa90-63067fba3629"
+    }
+  ],
+  "pinData": {
+    "When clicking ‘Execute workflow’": [
+      {
+        "json": {}
+      }
+    ],
+    "On form submission": [
+      {
+        "json": {
+          "Share URL": "3.35 复制打开抖音，看看【凉月的作品】这还是地球吗# 新西兰# 峡湾地貌  https://v.douyin.com/zab-OKopSIA/ 10/14 b@N.JI LWz:/",
+          "submittedAt": "2025-12-03T08:11:17.314+07:00",
+          "formMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload a file": {
+      "main": [
+        [
+          {
+            "node": "Share a file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Get URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List a folder": {
+      "main": [
+        [
+          {
+            "node": "Count File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download": {
+      "main": [
+        [
+          {
+            "node": "Create a folder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get URL": {
+      "main": [
+        [
+          {
+            "node": "Download",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Count File": {
+      "main": [
+        [
+          {
+            "node": "Upload a file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a folder": {
+      "main": [
+        [
+          {
+            "node": "List a folder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Share a file": {
+      "main": [
+        [
+          {
+            "node": "Form",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "591bbe24-54e6-4468-97e9-a2d5f182cd33",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4f8be86c7e6fc2ab223bed30484d39fcac64f36e78bcba82abd606a8dfaf4b4e"
+  },
+  "id": "egKwO5JIMxwzoHR8",
+  "tags": []
+}
